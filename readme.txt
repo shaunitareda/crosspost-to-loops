@@ -1,0 +1,105 @@
+=== Crosspost to Loops ===
+Contributors:      puffidredz
+Donate link:       https://ko-fi.com/evecodes
+Tags:              loops, video, crosspost, social media, fediverse
+Requires at least: 6.0
+Tested up to:      6.9
+Stable tag:        1.0.0
+Requires PHP:      8.0
+License:           GPLv2 or later
+License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+
+Crossposts video posts from your site to Loops.video with one-click OAuth connect.
+
+== Description ==
+
+Crosspost to Loops connects your WordPress site to [Loops.video](https://loops.video) — the open-source, federated short-video platform — with a simple one-click OAuth flow.
+
+When you publish a post containing a video, the plugin automatically uploads it to your Loops.video account. No manual token wrangling, no third-party tools required.
+
+= Features =
+
+* **One-click OAuth connect** — authorise the plugin directly from the settings page.
+* **Auto-crosspost on publish** — video posts are uploaded to Loops.video automatically when published.
+* **Manual crosspost button** — trigger or re-trigger a crosspost from the post editor sidebar.
+* **Flexible video detection** — finds videos via WordPress media attachments, wp:video blocks in post content, or any custom/ACF meta field.
+* **Connected account card** — see your Loops.video profile, video count, and follower count right in the settings page.
+* **Test Crosspost tab** — verify your setup end-to-end before going live.
+* **Debug Log tab** — timestamped log of all crosspost attempts with colour-coded status.
+* **Disconnect button** — revoke access and reconnect at any time.
+
+== Installation ==
+
+1. Upload the `crosspost-to-loops` folder to the `/wp-content/plugins/` directory.
+2. Activate the plugin via **Plugins → Installed Plugins**.
+3. Go to **Settings → Crosspost to Loops**.
+4. Click **Connect to Loops.video** and follow the prompts.
+5. Configure your preferred video source and upload defaults, then save.
+
+== Frequently Asked Questions ==
+
+= Does this work with self-hosted Loops instances? =
+
+Yes. Enter your instance URL in the Instance URL setting before connecting.
+
+= Is the access token stored securely? =
+
+The token is stored in the WordPress options table, restricted to administrators, the same way all plugin settings are stored in WordPress.
+
+= Can I crosspost to multiple Loops accounts? =
+
+Not currently — the plugin supports one connected account at a time.
+
+= What video formats are supported? =
+
+Any format accepted by Loops.video: MP4, MOV, WebM, OGG, AVI, MKV.
+
+= What are the video source options? =
+
+* **Attached video file** — finds the first video file attached to the post in the WordPress Media Library.
+* **Post content (video block)** — parses the post body for a wp:video block and extracts its URL.
+* **Custom field** — reads a video URL from the post meta key you specify (compatible with ACF, Meta Box, etc.).
+
+== Screenshots ==
+
+1. Settings page showing the connected account card and one-click connect button.
+2. Post editor sidebar metabox with crosspost status and manual trigger button.
+3. Test Crosspost tab with step-by-step results.
+4. Debug Log tab showing timestamped crosspost activity.
+
+== Changelog ==
+
+= 1.6.0 =
+* Fixed all WordPress Plugin Check errors and warnings.
+* Replaced wp_redirect() with wp_safe_redirect() throughout OAuth flow.
+* Added wp_unslash() to all $_GET and $_POST reads.
+* Replaced unlink() with wp_delete_file().
+* Replaced rename() with WP_Filesystem_Direct::move().
+* Added translators: comments to all sprintf( __(...) ) calls.
+* Escaped all output via esc_html(), esc_attr(), wp_kses().
+* Full PHPCS + WPCS compliance with zero errors.
+
+= 1.5.0 =
+* Added Test Crosspost tab with step-by-step diagnostics.
+
+= 1.4.0 =
+* Added one-click OAuth connect and disconnect flow.
+
+= 1.3.0 =
+* Split settings and debug log into separate tabs.
+* Added Settings and Debug Log links on the Plugins page.
+
+= 1.2.0 =
+* Added connected account card showing avatar, username, video and follower counts.
+
+= 1.1.0 =
+* Added eye toggle on the access token field.
+* Added debug log with clear button.
+
+= 1.0.0 =
+* Initial release.
+
+== Upgrade Notice ==
+
+= 1.6.0 =
+Full PHPCS and WordPress Plugin Check compliance. Recommended for all users.
