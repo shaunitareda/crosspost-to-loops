@@ -3,7 +3,7 @@
  * Plugin Name:       Crosspost to Loops
  * Plugin URI:        https://wordpress.org/plugins/crosspost-to-loops
  * Description:       Automatically crossposts video posts from your WordPress blog to Loops.video (joinloops.org).
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            evecodes
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CTL_VERSION', '1.0.0' );
+define( 'CTL_VERSION', '1.0.1' );
 define( 'CTL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CTL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -467,7 +467,9 @@ final class Crosspost_To_Loops {
 		$clean = array();
 
 		$clean['instance_url']       = esc_url_raw( trim( $input['instance_url'] ?? 'https://loops.video' ) );
-		$clean['access_token']       = sanitize_text_field( trim( $input['access_token'] ?? '' ) );
+		$existing                    = $this->get_settings();
+		$submitted_token             = sanitize_text_field( trim( $input['access_token'] ?? '' ) );
+		$clean['access_token']       = '' !== $submitted_token ? $submitted_token : (string) ( $existing['access_token'] ?? '' );
 		$clean['auto_crosspost']     = ! empty( $input['auto_crosspost'] );
 		$clean['enabled_post_types'] = array_map( 'sanitize_key', (array) ( $input['enabled_post_types'] ?? array( 'post' ) ) );
 		$clean['video_source']       = sanitize_key( $input['video_source'] ?? 'attachment' );
@@ -504,7 +506,7 @@ final class Crosspost_To_Loops {
 				'can_duet'           => false,
 				'can_stitch'         => false,
 				'include_post_url'   => true,
-				'enable_debug'       => true,
+				'enable_debug'       => false,
 			)
 		);
 	}
@@ -546,7 +548,7 @@ final class Crosspost_To_Loops {
 			 </div>
 			 <p class="description">%s <a href="https://loops.video/settings/developer" target="_blank">%s</a>.</p>',
 			esc_attr( self::OPTION_KEY ),
-			esc_attr( $s['access_token'] ),
+			'',
 			esc_html__( 'Toggle token visibility', 'crosspost-to-loops' ),
 			esc_html__( 'Verify token', 'crosspost-to-loops' ),
 			esc_html__( 'Your Loops.video personal access token. Generate one in your account', 'crosspost-to-loops' ),
@@ -1808,6 +1810,9 @@ final class Crosspost_To_Loops {
 			return;
 		}
 
+		$message = $this->redact_sensitive_string( $message );
+		$context = $this->redact_sensitive_value( $context );
+
 		$entries   = get_option( self::LOG_OPTION, array() );
 		$entries[] = array(
 			'time'    => current_time( 'Y-m-d H:i:s' ),
@@ -1822,6 +1827,43 @@ final class Crosspost_To_Loops {
 		}
 
 		update_option( self::LOG_OPTION, $entries, false );
+	}
+
+
+	/**
+	 * Recursively redact secrets before writing log context.
+	 *
+	 * @param mixed  $value Value to sanitize.
+	 * @param string $key   Context key, when available.
+	 * @return mixed
+	 */
+	private function redact_sensitive_value( $value, string $key = '' ) {
+		$normalized = strtolower( str_replace( array( '-', '_' ), '', $key ) );
+		$sensitive  = array( 'password', 'apppassword', 'token', 'accesstoken', 'refreshtoken', 'clientsecret', 'authorization', 'bearer' );
+		if ( $key && in_array( $normalized, $sensitive, true ) ) {
+			return '[REDACTED]';
+		}
+		if ( is_array( $value ) ) {
+			$clean = array();
+			foreach ( $value as $child_key => $child_value ) {
+				$clean[ $child_key ] = $this->redact_sensitive_value( $child_value, (string) $child_key );
+			}
+			return $clean;
+		}
+		return is_string( $value ) ? $this->redact_sensitive_string( $value ) : $value;
+	}
+
+	/**
+	 * Redact common credential patterns from a log message.
+	 */
+	private function redact_sensitive_string( string $value ): string {
+		$value = preg_replace( '/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/i', 'Bearer [REDACTED]', $value );
+		$value = preg_replace(
+			'/(["\']?(?:client_secret|access_token|refresh_token|token|password|authorization)["\']?\s*[:=]\s*["\']?)[^"\'\s,&}]+/i',
+			'$1[REDACTED]',
+			$value
+		);
+		return $value;
 	}
 
 	/**
