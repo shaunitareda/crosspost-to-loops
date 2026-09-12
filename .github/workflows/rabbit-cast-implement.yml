@@ -19,7 +19,9 @@ jobs:
           ref: rabbit-cast-rest
           fetch-depth: 0
       - name: Apply surgical edits
-        run: python3 scripts/apply-rabbit-cast.py
+        run: |
+          sed -i 's/final class Crosspost_To_Loops_Rabbit_Cast/class Crosspost_To_Loops_Rabbit_Cast/' scripts/apply-rabbit-cast.py
+          python3 scripts/apply-rabbit-cast.py
       - name: Run syntax and tests
         run: bash tests/run.sh
       - name: Commit validated implementation
