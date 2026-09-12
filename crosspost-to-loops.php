@@ -3,7 +3,7 @@
  * Plugin Name:       Crosspost to Loops
  * Plugin URI:        https://wordpress.org/plugins/crosspost-to-loops
  * Description:       Automatically crossposts video posts from your WordPress blog to Loops.video (joinloops.org).
- * Version:           1.0.1
+ * Version:           1.7.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            evecodes
@@ -17,9 +17,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CTL_VERSION', '1.0.1' );
+define( 'CTL_VERSION', '1.7.0' );
 define( 'CTL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CTL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+require_once CTL_PLUGIN_DIR . 'includes/class-rabbit-cast.php';
 
 /**
  * Main plugin class for Crosspost to Loops.
@@ -141,6 +143,13 @@ final class Crosspost_To_Loops {
 		add_action( 'admin_init', array( $this, 'handle_oauth_start' ) );
 		add_action( 'admin_init', array( $this, 'handle_oauth_callback' ) );
 		add_action( 'wp_ajax_loops_disconnect', array( $this, 'ajax_disconnect' ) );
+
+		new Crosspost_To_Loops_Rabbit_Cast(
+			$this,
+			function ( string $file_path, array $fields, string $token, string $instance_url ) {
+				return $this->api_upload_video( $file_path, $fields, $token, $instance_url );
+			}
+		);
 	}
 
 	/**
