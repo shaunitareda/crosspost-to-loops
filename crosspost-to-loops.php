@@ -293,17 +293,14 @@ final class Crosspost_To_Loops {
 			rtrim( $s['instance_url'], '/' ) . '/oauth/token',
 			array(
 				'headers' => array(
-					'Content-Type' => 'application/json',
-					'Accept'       => 'application/json',
+					'Accept' => 'application/json',
 				),
-				'body'    => wp_json_encode(
-					array(
-						'grant_type'    => 'authorization_code',
-						'client_id'     => $client['client_id'],
-						'client_secret' => $client['client_secret'],
-						'redirect_uri'  => $client['redirect_uri'],
-						'code'          => $code,
-					)
+				'body'    => array(
+					'grant_type'    => 'authorization_code',
+					'client_id'     => $client['client_id'],
+					'client_secret' => $client['client_secret'],
+					'redirect_uri'  => $client['redirect_uri'],
+					'code'          => $code,
 				),
 				'timeout' => 15,
 			)
