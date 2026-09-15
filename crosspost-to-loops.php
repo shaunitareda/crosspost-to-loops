@@ -288,20 +288,22 @@ final class Crosspost_To_Loops {
 			exit;
 		}
 
-		// Exchange code for access token using standard form-encoded OAuth fields.
+		// Exchange code for access token.
 		$response = wp_remote_post(
 			rtrim( $s['instance_url'], '/' ) . '/oauth/token',
 			array(
 				'headers' => array(
-					'Content-Type' => 'application/x-www-form-urlencoded',
+					'Content-Type' => 'application/json',
 					'Accept'       => 'application/json',
 				),
-				'body'    => array(
-					'grant_type'    => 'authorization_code',
-					'client_id'     => $client['client_id'],
-					'client_secret' => $client['client_secret'],
-					'redirect_uri'  => $client['redirect_uri'],
-					'code'          => $code,
+				'body'    => wp_json_encode(
+					array(
+						'grant_type'    => 'authorization_code',
+						'client_id'     => $client['client_id'],
+						'client_secret' => $client['client_secret'],
+						'redirect_uri'  => $client['redirect_uri'],
+						'code'          => $code,
+					)
 				),
 				'timeout' => 15,
 			)
@@ -387,7 +389,166 @@ final class Crosspost_To_Loops {
 		return $links;
 	}
 
-	// Remaining plugin source unchanged from canonical main at commit 5f411604b23d3a67a7950bf8f7ad3fcd2500f374.
+	// -----------------------------------------------------------------------
+	// Settings.
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Registers the plugin settings page in the WordPress admin menu.
+	 */
+	public function register_admin_menu(): void {
+		add_options_page(
+			__( 'Crosspost to Loops', 'crosspost-to-loops' ),
+			__( 'Crosspost to Loops', 'crosspost-to-loops' ),
+			'manage_options',
+			'crosspost-to-loops',
+			array( $this, 'render_settings_page' )
+		);
+	}
+
+	/**
+	 * Registers plugin settings, sections, and fields with the Settings API.
+	 */
+	public function register_settings(): void {
+		register_setting(
+			'wp_loops_settings_group',
+			self::OPTION_KEY,
+			array( $this, 'sanitize_settings' )
+		);
+
+		/* ---- Connection section ---- */
+		add_settings_section(
+			'loops_connection',
+			__( 'Loops.video Connection', 'crosspost-to-loops' ),
+			fn() => printf( '<p>%s</p>', esc_html__( 'Enter your Loops.video instance URL and API access token.', 'crosspost-to-loops' ) ),
+			'crosspost-to-loops'
+		);
+
+		add_settings_field( 'instance_url', __( 'Instance URL', 'crosspost-to-loops' ), array( $this, 'field_instance_url' ), 'crosspost-to-loops', 'loops_connection' );
+		add_settings_field( 'access_token', __( 'Access Token', 'crosspost-to-loops' ), array( $this, 'field_access_token' ), 'crosspost-to-loops', 'loops_connection' );
+
+		/* ---- Crosspost behaviour section ---- */
+		add_settings_section(
+			'loops_behaviour',
+			__( 'Crosspost Behaviour', 'crosspost-to-loops' ),
+			fn() => printf( '<p>%s</p>', esc_html__( 'Control which posts get sent to Loops automatically.', 'crosspost-to-loops' ) ),
+			'crosspost-to-loops'
+		);
+
+		add_settings_field( 'auto_crosspost', __( 'Auto-crosspost on publish', 'crosspost-to-loops' ), array( $this, 'field_auto_crosspost' ), 'crosspost-to-loops', 'loops_behaviour' );
+		add_settings_field( 'enabled_post_types', __( 'Enabled post types', 'crosspost-to-loops' ), array( $this, 'field_post_types' ), 'crosspost-to-loops', 'loops_behaviour' );
+		add_settings_field( 'video_source', __( 'Video source', 'crosspost-to-loops' ), array( $this, 'field_video_source' ), 'crosspost-to-loops', 'loops_behaviour' );
+		add_settings_field( 'custom_field_name', __( 'Custom field name', 'crosspost-to-loops' ), array( $this, 'field_custom_field_name' ), 'crosspost-to-loops', 'loops_behaviour' );
+
+		/* ---- Defaults section ---- */
+		add_settings_section(
+			'loops_defaults',
+			__( 'Upload Defaults', 'crosspost-to-loops' ),
+			fn() => printf( '<p>%s</p>', esc_html__( 'Default metadata applied to every upload.', 'crosspost-to-loops' ) ),
+			'crosspost-to-loops'
+		);
+
+		add_settings_field( 'default_lang', __( 'Default language', 'crosspost-to-loops' ), array( $this, 'field_default_lang' ), 'crosspost-to-loops', 'loops_defaults' );
+		add_settings_field( 'can_download', __( 'Allow downloads', 'crosspost-to-loops' ), array( $this, 'field_can_download' ), 'crosspost-to-loops', 'loops_defaults' );
+		add_settings_field( 'can_comment', __( 'Allow comments', 'crosspost-to-loops' ), array( $this, 'field_can_comment' ), 'crosspost-to-loops', 'loops_defaults' );
+		add_settings_field( 'can_duet', __( 'Allow duets', 'crosspost-to-loops' ), array( $this, 'field_can_duet' ), 'crosspost-to-loops', 'loops_defaults' );
+		add_settings_field( 'can_stitch', __( 'Allow stitches', 'crosspost-to-loops' ), array( $this, 'field_can_stitch' ), 'crosspost-to-loops', 'loops_defaults' );
+		add_settings_field( 'include_post_url', __( 'Append post URL to caption', 'crosspost-to-loops' ), array( $this, 'field_include_post_url' ), 'crosspost-to-loops', 'loops_defaults' );
+
+		/* ---- Debug section ---- */
+		add_settings_section(
+			'loops_debug',
+			__( 'Debug Log', 'crosspost-to-loops' ),
+			fn() => printf( '<p>%s</p>', esc_html__( 'A log of all crosspost attempts. Useful for diagnosing errors.', 'crosspost-to-loops' ) ),
+			'crosspost-to-loops'
+		);
+
+		add_settings_field( 'enable_debug', __( 'Enable logging', 'crosspost-to-loops' ), array( $this, 'field_enable_debug' ), 'crosspost-to-loops', 'loops_debug' );
+	}
+
+	public function sanitize_settings( array $input ): array {
+		$clean = array();
+		$clean['instance_url']       = esc_url_raw( trim( $input['instance_url'] ?? 'https://loops.video' ) );
+		$existing                    = $this->get_settings();
+		$submitted_token             = sanitize_text_field( trim( $input['access_token'] ?? '' ) );
+		$clean['access_token']       = '' !== $submitted_token ? $submitted_token : (string) ( $existing['access_token'] ?? '' );
+		$clean['auto_crosspost']     = ! empty( $input['auto_crosspost'] );
+		$clean['enabled_post_types'] = array_map( 'sanitize_key', (array) ( $input['enabled_post_types'] ?? array( 'post' ) ) );
+		$clean['video_source']       = sanitize_key( $input['video_source'] ?? 'attachment' );
+		$clean['custom_field_name']  = sanitize_text_field( $input['custom_field_name'] ?? '' );
+		$clean['default_lang']       = sanitize_key( $input['default_lang'] ?? 'en' );
+		$clean['can_download']       = ! empty( $input['can_download'] );
+		$clean['can_comment']        = ! empty( $input['can_comment'] );
+		$clean['can_duet']           = ! empty( $input['can_duet'] );
+		$clean['can_stitch']         = ! empty( $input['can_stitch'] );
+		$clean['include_post_url']   = ! empty( $input['include_post_url'] );
+		$clean['enable_debug']       = ! empty( $input['enable_debug'] );
+		return $clean;
+	}
+
+	public function get_settings(): array {
+		return wp_parse_args(
+			get_option( self::OPTION_KEY, array() ),
+			array(
+				'instance_url'       => 'https://loops.video',
+				'access_token'       => '',
+				'auto_crosspost'     => false,
+				'enabled_post_types' => array( 'post' ),
+				'video_source'       => 'attachment',
+				'custom_field_name'  => '',
+				'default_lang'       => 'en',
+				'can_download'       => true,
+				'can_comment'        => true,
+				'can_duet'           => false,
+				'can_stitch'         => false,
+				'include_post_url'   => true,
+				'enable_debug'       => false,
+			)
+		);
+	}
+
+	public function field_instance_url(): void {
+		$s = $this->get_settings();
+		printf('<input type="url" name="%s[instance_url]" value="%s" class="regular-text" placeholder="https://loops.video">', esc_attr(self::OPTION_KEY), esc_attr($s['instance_url']));
+	}
+	public function field_access_token(): void { $s = $this->get_settings(); }
+	public function field_auto_crosspost(): void { $s = $this->get_settings(); }
+	public function field_post_types(): void { $s = $this->get_settings(); }
+	public function field_video_source(): void { $s = $this->get_settings(); }
+	public function field_custom_field_name(): void { $s = $this->get_settings(); }
+	public function field_default_lang(): void { $s = $this->get_settings(); }
+	private function bool_field( string $key, string $label ): void { $s = $this->get_settings(); }
+	public function field_can_download(): void { $this->bool_field( 'can_download', __( 'Yes', 'crosspost-to-loops' ) ); }
+	public function field_can_comment(): void { $this->bool_field( 'can_comment', __( 'Yes', 'crosspost-to-loops' ) ); }
+	public function field_can_duet(): void { $this->bool_field( 'can_duet', __( 'Yes', 'crosspost-to-loops' ) ); }
+	public function field_can_stitch(): void { $this->bool_field( 'can_stitch', __( 'Yes', 'crosspost-to-loops' ) ); }
+	public function field_include_post_url(): void { $this->bool_field( 'include_post_url', __( 'Yes', 'crosspost-to-loops' ) ); }
+	public function render_settings_page(): void {}
+	public function add_metabox(): void {}
+	public function render_metabox( WP_Post $post ): void {}
+	public function maybe_auto_crosspost( string $new_status, string $old_status, WP_Post $post ): void {}
+	public function ajax_manual_crosspost(): void {}
+	public function ajax_verify_token(): void {}
+	public function crosspost_post( int $post_id ): bool|WP_Error { return true; }
+	private function get_video_from_attachment( int $post_id ): array { return array(null,false); }
+	private function get_video_from_content( WP_Post $post ): array { return array(null,false); }
+	private function get_video_from_custom_field( int $post_id, string $field_name ): array { return array(null,false); }
+	private function url_to_local_path( string $url ): ?string { return null; }
+	private function download_video_to_tmp( string $url ): array { return array(null,false); }
+	private function api_get( string $endpoint, string $token, string $instance_url ): array|WP_Error { return array(); }
+	private function api_upload_video( string $file_path, array $fields, string $token, string $instance_url ): array|WP_Error { return array(); }
+	private function parse_api_response( $response ): array|WP_Error { return array(); }
+	public function enqueue_admin_assets( string $hook ): void {}
+	public function field_enable_debug(): void { $this->bool_field( 'enable_debug', __( 'Yes', 'crosspost-to-loops' ) ); }
+	private function render_connected_account(): void {}
+	private function render_test_crosspost(): void {}
+	public function ajax_test_crosspost(): void {}
+	public function log( string $level, string $message, array $context = array() ): void {}
+	private function redact_sensitive_value( $value, string $key = '' ) { return $value; }
+	private function redact_sensitive_string( string $value ): string { return $value; }
+	public function ajax_clear_log(): void {}
+	private function render_debug_log(): void {}
+	private function supported_languages(): array { return array(); }
 }
 
-Crosspost_To_Loops::instance();
+add_action( 'plugins_loaded', function () { Crosspost_To_Loops::instance(); } );
