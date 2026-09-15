@@ -191,7 +191,8 @@ final class Crosspost_To_Loops {
 				'body'    => wp_json_encode(
 					array(
 						'client_name'   => get_bloginfo( 'name' ) . ' (Crosspost to Loops)',
-						'redirect_uris' => array( $redirect_uri ),
+						'redirect_uris' => $redirect_uri,
+						'scopes'        => 'read write follow',
 					)
 				),
 				'timeout' => 15,
@@ -231,6 +232,7 @@ final class Crosspost_To_Loops {
 				'response_type' => 'code',
 				'client_id'     => $data['client_id'],
 				'redirect_uri'  => $redirect_uri,
+				'scope'         => 'read write follow',
 				'state'         => $state,
 			),
 			$instance_url . '/oauth/authorize'
@@ -293,14 +295,18 @@ final class Crosspost_To_Loops {
 			rtrim( $s['instance_url'], '/' ) . '/oauth/token',
 			array(
 				'headers' => array(
-					'Accept' => 'application/json',
+					'Content-Type' => 'application/json',
+					'Accept'       => 'application/json',
 				),
-				'body'    => array(
+				'body'    => wp_json_encode(
+				        array(
 					'grant_type'    => 'authorization_code',
 					'client_id'     => $client['client_id'],
 					'client_secret' => $client['client_secret'],
 					'redirect_uri'  => $client['redirect_uri'],
 					'code'          => $code,
+					'scope'         => 'read write follow',
+				        )
 				),
 				'timeout' => 15,
 			)
