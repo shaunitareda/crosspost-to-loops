@@ -3,7 +3,7 @@
  * Plugin Name:       Crosspost to Loops
  * Plugin URI:        https://wordpress.org/plugins/crosspost-to-loops
  * Description:       Automatically crossposts video posts from your WordPress blog to Loops.video (joinloops.org).
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            evecodes
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CTL_VERSION', '1.0.2' );
+define( 'CTL_VERSION', '1.0.3' );
 define( 'CTL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CTL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -1583,10 +1583,34 @@ final class Crosspost_To_Loops {
 									<option value=""><?php esc_html_e( '— Select a post —', 'crosspost-to-loops' ); ?></option>
 									<?php
 									foreach ( $posts as $p ) :
-										$crossposted = get_post_meta( $p->ID, self::META_VIDEO_ID, true ) ? ' ✓' : '';
+										$post_id     = $p->ID;
+										$crossposted = get_post_meta( $post_id, self::META_VIDEO_ID, true ) ? ' ✓' : '';
+										$label       = trim( get_the_title( $post_id ) );
+
+										if ( '' === $label ) {
+											$content = (string) get_post_field( 'post_content', $post_id, 'raw' );
+											$content = wp_strip_all_tags( strip_shortcodes( $content ), true );
+											$content = trim( preg_replace( '/\s+/u', ' ', $content ) ?? '' );
+
+											if ( '' !== $content ) {
+												$label = wp_html_excerpt( $content, 80, '…' );
+											} else {
+												$post_type        = get_post_type( $post_id );
+												$post_type_object = $post_type ? get_post_type_object( $post_type ) : null;
+												$singular_label   = ! empty( $post_type_object->labels->singular_name )
+													? $post_type_object->labels->singular_name
+													: __( 'Post', 'crosspost-to-loops' );
+												$label            = sprintf(
+													/* translators: 1: post type singular label, 2: post ID. */
+													__( 'Untitled %1$s (#%2$d)', 'crosspost-to-loops' ),
+													$singular_label,
+													$post_id
+												);
+											}
+										}
 										?>
-										<option value="<?php echo esc_attr( $p->ID ); ?>">
-											<?php echo esc_html( $p->post_title . $crossposted ); ?>
+										<option value="<?php echo esc_attr( $post_id ); ?>">
+											<?php echo esc_html( $label . $crossposted ); ?>
 										</option>
 									<?php endforeach; ?>
 								</select>

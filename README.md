@@ -3,7 +3,7 @@
 **Plugin Name:** Crosspost to Loops  
 **License:** GPLv2 or later  
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html  
-**Stable Tag:** 1.0.2
+**Stable Tag:** 1.0.3
 **Tested up to:** 6.9  
 **Requires at least:** 6.0  
 **Requires PHP:** 8.0  
@@ -63,6 +63,9 @@ Not currently — the plugin supports one connected account at a time.
 ---
 
 ## Changelog
+
+### 1.0.3
+- Fixed blank Test Crosspost selector rows by showing concise content snippets for titleless posts, with an untitled post-type fallback when no useful text exists.
 
 ### 1.0.2
 - Updated Loops OAuth app registration, authorization, and token exchange to use the required `user:read video:create` scope.

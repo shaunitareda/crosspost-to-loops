@@ -4,7 +4,7 @@ Donate link:       https://ko-fi.com/evecodes
 Tags:              loops, video, crosspost, social media, fediverse
 Requires at least: 6.0
 Tested up to:      6.9
-Stable tag:        1.0.2
+Stable tag:        1.0.3
 Requires PHP:      8.0
 License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -68,6 +68,9 @@ Any format accepted by Loops.video: MP4, MOV, WebM, OGG, AVI, MKV.
 4. Debug Log tab showing timestamped crosspost activity.
 
 == Changelog ==
+
+= 1.0.3 =
+* Fixed blank Test Crosspost selector rows by showing concise content snippets for titleless posts, with an untitled post-type fallback when no useful text exists.
 
 = 1.0.2 =
 * Updated Loops OAuth app registration, authorization, and token exchange to use the required user:read video:create scope.
