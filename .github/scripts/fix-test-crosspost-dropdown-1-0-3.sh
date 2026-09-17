@@ -18,9 +18,9 @@ text = replace_once(text, " * Version:           1.0.2", " * Version:           
 text = replace_once(text, "define( 'CTL_VERSION', '1.0.2' );", "define( 'CTL_VERSION', '1.0.3' );", 'version constant')
 
 old = "\t\t\t\t\t\t\t\t\t\t$crossposted = get_post_meta( $p->ID, self::META_VIDEO_ID, true ) ? ' ✓' : '';"
-new = """\t\t\t\t\t\t\t\t\t\t$post_id = $p->ID;
+new = """\t\t\t\t\t\t\t\t\t\t$post_id     = $p->ID;
 \t\t\t\t\t\t\t\t\t\t$crossposted = get_post_meta( $post_id, self::META_VIDEO_ID, true ) ? ' ✓' : '';
-\t\t\t\t\t\t\t\t\t\t$label = trim( get_the_title( $post_id ) );
+\t\t\t\t\t\t\t\t\t\t$label       = trim( get_the_title( $post_id ) );
 
 \t\t\t\t\t\t\t\t\t\tif ( '' === $label ) {
 \t\t\t\t\t\t\t\t\t\t\t$content = (string) get_post_field( 'post_content', $post_id, 'raw' );
@@ -30,12 +30,12 @@ new = """\t\t\t\t\t\t\t\t\t\t$post_id = $p->ID;
 \t\t\t\t\t\t\t\t\t\t\tif ( '' !== $content ) {
 \t\t\t\t\t\t\t\t\t\t\t\t$label = wp_html_excerpt( $content, 80, '…' );
 \t\t\t\t\t\t\t\t\t\t\t} else {
-\t\t\t\t\t\t\t\t\t\t\t\t$post_type = get_post_type( $post_id );
+\t\t\t\t\t\t\t\t\t\t\t\t$post_type        = get_post_type( $post_id );
 \t\t\t\t\t\t\t\t\t\t\t\t$post_type_object = $post_type ? get_post_type_object( $post_type ) : null;
-\t\t\t\t\t\t\t\t\t\t\t\t$singular_label = ! empty( $post_type_object->labels->singular_name )
+\t\t\t\t\t\t\t\t\t\t\t\t$singular_label   = ! empty( $post_type_object->labels->singular_name )
 \t\t\t\t\t\t\t\t\t\t\t\t\t? $post_type_object->labels->singular_name
 \t\t\t\t\t\t\t\t\t\t\t\t\t: __( 'Post', 'crosspost-to-loops' );
-\t\t\t\t\t\t\t\t\t\t\t\t$label = sprintf(
+\t\t\t\t\t\t\t\t\t\t\t\t$label            = sprintf(
 \t\t\t\t\t\t\t\t\t\t\t\t\t/* translators: 1: post type singular label, 2: post ID. */
 \t\t\t\t\t\t\t\t\t\t\t\t\t__( 'Untitled %1$s (#%2$d)', 'crosspost-to-loops' ),
 \t\t\t\t\t\t\t\t\t\t\t\t\t$singular_label,
