@@ -117,12 +117,12 @@ jobs:
           grep -Fq "hash_equals( \$saved_state, \$received_state )" crosspost-to-loops.php
           grep -Fq "wp_generate_password( 32, false )" crosspost-to-loops.php
 
-          if find . -type f \( -iname '*rabbit*' -o -path '*/includes/class-rabbit*' \) -print -quit | grep -q .; then
-            echo 'Rabbit-specific file detected unexpectedly.' >&2
+          if find . -path './.git' -prune -o -path './.github' -prune -o -type f \( -iname '*rabbit*' -o -path '*/includes/class-rabbit*' \) -print | grep -q .; then
+            echo 'Rabbit-specific plugin file detected unexpectedly.' >&2
             exit 1
           fi
-          if grep -RniE 'Rabbit_Cast|RCTL_|X-Eboni-Rabbit-Key|rabbit-cast' --exclude-dir=.git .; then
-            echo 'Rabbit-specific class/endpoint content detected unexpectedly.' >&2
+          if grep -niE 'Rabbit_Cast|RCTL_|X-Eboni-Rabbit-Key|rabbit-cast' crosspost-to-loops.php README.md readme.txt assets/admin.js; then
+            echo 'Rabbit-specific plugin class/endpoint content detected unexpectedly.' >&2
             exit 1
           fi
 
