@@ -17,16 +17,8 @@ text = path.read_text()
 text = replace_once(text, " * Version:           1.0.2", " * Version:           1.0.3", 'plugin header version')
 text = replace_once(text, "define( 'CTL_VERSION', '1.0.2' );", "define( 'CTL_VERSION', '1.0.3' );", 'version constant')
 
-old = """\t\t\t\t\tforeach ( $posts as $p ) :
-\t\t\t\t\t\t$crossposted = get_post_meta( $p->ID, self::META_VIDEO_ID, true ) ? ' ✓' : '';
-\t\t\t\t\t\t?>
-\t\t\t\t\t\t<option value=\"<?php echo esc_attr( $p->ID ); ?>\">
-\t\t\t\t\t\t\t<?php echo esc_html( $p->post_title . $crossposted ); ?>
-\t\t\t\t\t\t</option>
-\t\t\t\t\t<?php endforeach; ?>
-"""
-new = """\t\t\t\t\tforeach ( $posts as $p ) :
-\t\t\t\t\t\t$crossposted = get_post_meta( $p->ID, self::META_VIDEO_ID, true ) ? ' ✓' : '';
+old = "\t\t\t\t\t\t$crossposted = get_post_meta( $p->ID, self::META_VIDEO_ID, true ) ? ' ✓' : '';"
+new = """\t\t\t\t\t\t$crossposted = get_post_meta( $p->ID, self::META_VIDEO_ID, true ) ? ' ✓' : '';
 \t\t\t\t\t\t$label       = trim( $p->post_title );
 
 \t\t\t\t\t\tif ( '' === $label ) {
@@ -41,14 +33,14 @@ new = """\t\t\t\t\tforeach ( $posts as $p ) :
 \t\t\t\t\t\t\t\t/* translators: 1: post type singular label, 2: post ID. */
 \t\t\t\t\t\t\t\t$label = sprintf( __( 'Untitled %1$s (#%2$d)', 'crosspost-to-loops' ), $singular_label, $p->ID );
 \t\t\t\t\t\t\t}
-\t\t\t\t\t\t}
-\t\t\t\t\t\t?>
-\t\t\t\t\t\t<option value=\"<?php echo esc_attr( $p->ID ); ?>\">
-\t\t\t\t\t\t\t<?php echo esc_html( $label . $crossposted ); ?>
-\t\t\t\t\t\t</option>
-\t\t\t\t\t<?php endforeach; ?>
-"""
-text = replace_once(text, old, new, 'Test Crosspost option labels')
+\t\t\t\t\t\t}"""
+text = replace_once(text, old, new, 'Test Crosspost label setup')
+text = replace_once(
+    text,
+    "<?php echo esc_html( $p->post_title . $crossposted ); ?>",
+    "<?php echo esc_html( $label . $crossposted ); ?>",
+    'Test Crosspost option output',
+)
 path.write_text(text)
 
 readme = Path('README.md')
@@ -94,10 +86,7 @@ git show 7cb7739e5514e263f4231f8e3fa6e088380b10af:crosspost-to-loops.php > /tmp/
 cd /tmp/ctl-qa
 composer init --no-interaction --name=ctl/qa >/dev/null
 composer config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-composer require --no-interaction --no-progress \
-  squizlabs/php_codesniffer:^3.10 \
-  wp-coding-standards/wpcs:3.4.1 \
-  dealerdirect/phpcodesniffer-composer-installer:^1.0
+composer require --no-interaction --no-progress squizlabs/php_codesniffer:^3.10 wp-coding-standards/wpcs:3.4.1 dealerdirect/phpcodesniffer-composer-installer:^1.0
 
 set +e
 vendor/bin/phpcs --standard=WordPress --extensions=php --report=json /tmp/ctl-baseline/crosspost-to-loops.php > /tmp/ctl-baseline.json
