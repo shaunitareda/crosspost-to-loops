@@ -1,0 +1,171 @@
+name: Crosspost to Loops OAuth repair 1.0.2
+
+on:
+  push:
+    branches:
+      - fix-loops-oauth-1.0.2
+
+permissions:
+  contents: write
+
+jobs:
+  patch-validate-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer, wp-cli
+          coverage: none
+
+      - name: Apply generic OAuth compatibility patch
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected 1 match, found {count}")
+              return text.replace(old, new, 1)
+
+          path = Path('crosspost-to-loops.php')
+          text = path.read_text()
+
+          text = replace_once(text, " * Version:           1.0.1", " * Version:           1.0.2", 'plugin header version')
+          text = replace_once(text, "define( 'CTL_VERSION', '1.0.1' );", "define( 'CTL_VERSION', '1.0.2' );", 'version constant')
+
+          old = "\tconst OAUTH_STATE_KEY = 'ctl_oauth_state';\n"
+          new = "\tconst OAUTH_STATE_KEY = 'ctl_oauth_state';\n\n\t/**\n\t * OAuth scopes required by Loops for account verification and video uploads.\n\t *\n\t * @var string\n\t */\n\tconst OAUTH_SCOPE = 'user:read video:create';\n"
+          text = replace_once(text, old, new, 'OAuth scope constant')
+
+          old = "\t\tadd_action( 'admin_init', array( $this, 'handle_oauth_start' ) );\n\t\tadd_action( 'admin_init', array( $this, 'handle_oauth_callback' ) );\n"
+          new = "\t\tadd_action( 'admin_init', array( $this, 'handle_oauth_start' ) );\n\t\tadd_action( 'admin_post_ctl_oauth_callback', array( $this, 'handle_oauth_callback' ) );\n\t\t// Backward compatibility for OAuth flows started before the stable admin-post callback was introduced.\n\t\tadd_action( 'admin_init', array( $this, 'handle_oauth_callback' ) );\n"
+          text = replace_once(text, old, new, 'OAuth callback hooks')
+
+          old = "\t\t\t\t\tarray(\n\t\t\t\t\t\t'client_name'   => get_bloginfo( 'name' ) . ' (Crosspost to Loops)',\n\t\t\t\t\t\t'redirect_uris' => array( $redirect_uri ),\n\t\t\t\t\t)\n"
+          new = "\t\t\t\t\tarray(\n\t\t\t\t\t\t'client_name'   => get_bloginfo( 'name' ) . ' (Crosspost to Loops)',\n\t\t\t\t\t\t'redirect_uris' => array( $redirect_uri ),\n\t\t\t\t\t\t'scopes'        => self::OAUTH_SCOPE,\n\t\t\t\t\t\t'website'       => home_url( '/' ),\n\t\t\t\t\t)\n"
+          text = replace_once(text, old, new, 'OAuth app registration payload')
+
+          old = "\t\t\t\t'client_id'     => $data['client_id'],\n\t\t\t\t'redirect_uri'  => $redirect_uri,\n\t\t\t\t'state'         => $state,\n"
+          new = "\t\t\t\t'client_id'     => $data['client_id'],\n\t\t\t\t'redirect_uri'  => $redirect_uri,\n\t\t\t\t'scope'         => self::OAUTH_SCOPE,\n\t\t\t\t'state'         => $state,\n"
+          text = replace_once(text, old, new, 'OAuth authorize scope')
+
+          old = "\t\t// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth callback from external provider; CSRF protection uses state parameter below.\n\t\tif ( ! isset( $_GET['ctl_oauth_callback'] ) || ! current_user_can( 'manage_options' ) ) {\n\t\t\treturn;\n\t\t}\n"
+          new = "\t\t$is_admin_post_callback = 'admin_post_ctl_oauth_callback' === current_action();\n\t\t// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Legacy OAuth callback compatibility; CSRF protection uses state below.\n\t\t$is_legacy_callback = isset( $_GET['ctl_oauth_callback'] );\n\n\t\tif ( ( ! $is_admin_post_callback && ! $is_legacy_callback ) || ! current_user_can( 'manage_options' ) ) {\n\t\t\treturn;\n\t\t}\n"
+          text = replace_once(text, old, new, 'OAuth callback routing')
+
+          old = "\t\t\t\t\t\t'redirect_uri'  => $client['redirect_uri'],\n\t\t\t\t\t\t'code'          => $code,\n"
+          new = "\t\t\t\t\t\t'redirect_uri'  => $client['redirect_uri'],\n\t\t\t\t\t\t'code'          => $code,\n\t\t\t\t\t\t'scope'         => self::OAUTH_SCOPE,\n"
+          text = replace_once(text, old, new, 'OAuth token scope')
+
+          text = replace_once(
+              text,
+              "\t\treturn admin_url( 'options-general.php?page=crosspost-to-loops&ctl_oauth_callback=1' );",
+              "\t\treturn admin_url( 'admin-post.php?action=ctl_oauth_callback' );",
+              'stable OAuth redirect URI'
+          )
+
+          text = replace_once(
+              text,
+              "esc_html__( 'Enter your Loops.video instance URL and API access token.', 'crosspost-to-loops' )",
+              "esc_html__( 'Connect to your Loops.video instance with OAuth. You can still enter an access token manually if needed.', 'crosspost-to-loops' )",
+              'connection UI copy'
+          )
+
+          path.write_text(text)
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          text = replace_once(text, '**Stable Tag:** 1.6.0', '**Stable Tag:** 1.0.2', 'README stable tag')
+          marker = '## Changelog\n\n'
+          entry = "### 1.0.2\n- Updated Loops OAuth app registration, authorization, and token exchange to use the required `user:read video:create` scope.\n- Added the site URL during OAuth client registration.\n- Moved the primary OAuth callback to the stable WordPress `admin-post.php?action=ctl_oauth_callback` route while retaining legacy callback compatibility.\n- Clarified that OAuth is the normal connection path while manual access-token entry remains available.\n\n"
+          text = replace_once(text, marker, marker + entry, 'README changelog')
+          readme.write_text(text)
+
+          wp_readme = Path('readme.txt')
+          text = wp_readme.read_text()
+          text = replace_once(text, 'Stable tag:        1.0.0', 'Stable tag:        1.0.2', 'WordPress readme stable tag')
+          marker = '== Changelog ==\n\n'
+          entry = "= 1.0.2 =\n* Updated Loops OAuth app registration, authorization, and token exchange to use the required user:read video:create scope.\n* Added the site URL during OAuth client registration.\n* Moved the primary OAuth callback to admin-post.php?action=ctl_oauth_callback while retaining legacy callback compatibility.\n* Clarified that OAuth is the normal connection path while manual access-token entry remains available.\n\n"
+          text = replace_once(text, marker, marker + entry, 'WordPress readme changelog')
+          old_upgrade = "== Upgrade Notice ==\n\n= 1.6.0 =\nFull PHPCS and WordPress Plugin Check compliance. Recommended for all users.\n"
+          new_upgrade = "== Upgrade Notice ==\n\n= 1.0.2 =\nRestores compatibility with the current Loops OAuth flow by using the required scopes and stable callback route.\n"
+          text = replace_once(text, old_upgrade, new_upgrade, 'WordPress readme upgrade notice')
+          wp_readme.write_text(text)
+          PY
+
+      - name: Validate syntax, scope consistency, isolation, and diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l crosspost-to-loops.php
+
+          test "$(grep -o "user:read video:create" crosspost-to-loops.php | wc -l)" -eq 1
+          grep -Fq "'scopes'        => self::OAUTH_SCOPE" crosspost-to-loops.php
+          grep -Fq "'scope'         => self::OAUTH_SCOPE" crosspost-to-loops.php
+          test "$(grep -F "'scope'         => self::OAUTH_SCOPE" crosspost-to-loops.php | wc -l)" -eq 2
+          grep -Fq "'website'       => home_url( '/' )" crosspost-to-loops.php
+          grep -Fq "admin-post.php?action=ctl_oauth_callback" crosspost-to-loops.php
+          grep -Fq "hash_equals( \$saved_state, \$received_state )" crosspost-to-loops.php
+          grep -Fq "wp_generate_password( 32, false )" crosspost-to-loops.php
+
+          if find . -type f \( -iname '*rabbit*' -o -path '*/includes/class-rabbit*' \) -print -quit | grep -q .; then
+            echo 'Rabbit-specific file detected unexpectedly.' >&2
+            exit 1
+          fi
+          if grep -RniE 'Rabbit_Cast|RCTL_|X-Eboni-Rabbit-Key|rabbit-cast' --exclude-dir=.git .; then
+            echo 'Rabbit-specific class/endpoint content detected unexpectedly.' >&2
+            exit 1
+          fi
+
+          test ! -d tests || { echo 'Tests directory present; inspect and run its harness before commit.' >&2; exit 1; }
+
+          git diff --check
+          git status --short
+          git diff -- crosspost-to-loops.php README.md readme.txt
+
+      - name: Run PHPCS with WordPress Coding Standards
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ctl-qa
+          cd /tmp/ctl-qa
+          composer init --no-interaction --name=ctl/qa >/dev/null
+          composer config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer require --no-interaction --no-progress \
+            squizlabs/php_codesniffer:^3.10 \
+            wp-coding-standards/wpcs:^3.1 \
+            dealerdirect/phpcodesniffer-composer-installer:^1.0
+          vendor/bin/phpcs --standard=WordPress --extensions=php "$GITHUB_WORKSPACE/crosspost-to-loops.php"
+
+      - name: Report WordPress Plugin Check availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'WordPress Plugin Check is not bundled with this repository and no disposable WordPress test site is configured in this workflow; PHPCS/WPCS is the available static WordPress validation and was run above.'
+
+      - name: Remove temporary workflow and commit validated repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/oauth-repair-1-0-2.yml
+          rmdir .github/workflows 2>/dev/null || true
+          rmdir .github 2>/dev/null || true
+
+          git diff --check
+          git status --short
+          git diff --stat
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix Loops OAuth compatibility for v1.0.2'
+          git push origin HEAD:fix-loops-oauth-1.0.2
