@@ -4,7 +4,7 @@ Donate link:       https://ko-fi.com/evecodes
 Tags:              loops, video, crosspost, social media, fediverse
 Requires at least: 6.0
 Tested up to:      6.9
-Stable tag:        1.0.0
+Stable tag:        1.0.2
 Requires PHP:      8.0
 License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -69,6 +69,12 @@ Any format accepted by Loops.video: MP4, MOV, WebM, OGG, AVI, MKV.
 
 == Changelog ==
 
+= 1.0.2 =
+* Updated Loops OAuth app registration, authorization, and token exchange to use the required user:read video:create scope.
+* Added the site URL during OAuth client registration.
+* Moved the primary OAuth callback to admin-post.php?action=ctl_oauth_callback while retaining legacy callback compatibility.
+* Clarified that OAuth is the normal connection path while manual access-token entry remains available.
+
 = 1.6.0 =
 * Fixed all WordPress Plugin Check errors and warnings.
 * Replaced wp_redirect() with wp_safe_redirect() throughout OAuth flow.
@@ -101,5 +107,5 @@ Any format accepted by Loops.video: MP4, MOV, WebM, OGG, AVI, MKV.
 
 == Upgrade Notice ==
 
-= 1.6.0 =
-Full PHPCS and WordPress Plugin Check compliance. Recommended for all users.
+= 1.0.2 =
+Restores compatibility with the current Loops OAuth flow by using the required scopes and stable callback route.

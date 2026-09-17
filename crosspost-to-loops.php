@@ -3,7 +3,7 @@
  * Plugin Name:       Crosspost to Loops
  * Plugin URI:        https://wordpress.org/plugins/crosspost-to-loops
  * Description:       Automatically crossposts video posts from your WordPress blog to Loops.video (joinloops.org).
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            evecodes
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CTL_VERSION', '1.0.1' );
+define( 'CTL_VERSION', '1.0.2' );
 define( 'CTL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CTL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -107,6 +107,13 @@ final class Crosspost_To_Loops {
 	 */
 	const OAUTH_STATE_KEY = 'ctl_oauth_state';
 
+	/**
+	 * OAuth scopes required by Loops for account verification and video uploads.
+	 *
+	 * @var string
+	 */
+	const OAUTH_SCOPE = 'user:read video:create';
+
 	// -----------------------------------------------------------------------
 	// Bootstrap.
 	// -----------------------------------------------------------------------
@@ -139,6 +146,8 @@ final class Crosspost_To_Loops {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_plugin_action_links' ) );
 		add_action( 'admin_init', array( $this, 'handle_oauth_start' ) );
+		add_action( 'admin_post_ctl_oauth_callback', array( $this, 'handle_oauth_callback' ) );
+		// Backward compatibility for OAuth flows started before the stable admin-post callback was introduced.
 		add_action( 'admin_init', array( $this, 'handle_oauth_callback' ) );
 		add_action( 'wp_ajax_loops_disconnect', array( $this, 'ajax_disconnect' ) );
 	}
@@ -183,6 +192,8 @@ final class Crosspost_To_Loops {
 					array(
 						'client_name'   => get_bloginfo( 'name' ) . ' (Crosspost to Loops)',
 						'redirect_uris' => array( $redirect_uri ),
+						'scopes'        => self::OAUTH_SCOPE,
+						'website'       => home_url( '/' ),
 					)
 				),
 				'timeout' => 15,
@@ -222,6 +233,7 @@ final class Crosspost_To_Loops {
 				'response_type' => 'code',
 				'client_id'     => $data['client_id'],
 				'redirect_uri'  => $redirect_uri,
+				'scope'         => self::OAUTH_SCOPE,
 				'state'         => $state,
 			),
 			$instance_url . '/oauth/authorize'
@@ -246,8 +258,11 @@ final class Crosspost_To_Loops {
 	 * Step 2 of OAuth: exchanges the authorization code for an access token.
 	 */
 	public function handle_oauth_callback(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth callback from external provider; CSRF protection uses state parameter below.
-		if ( ! isset( $_GET['ctl_oauth_callback'] ) || ! current_user_can( 'manage_options' ) ) {
+		$is_admin_post_callback = 'admin_post_ctl_oauth_callback' === current_action();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Legacy OAuth callback compatibility; CSRF protection uses state below.
+		$is_legacy_callback = isset( $_GET['ctl_oauth_callback'] );
+
+		if ( ( ! $is_admin_post_callback && ! $is_legacy_callback ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
@@ -294,6 +309,7 @@ final class Crosspost_To_Loops {
 						'client_secret' => $client['client_secret'],
 						'redirect_uri'  => $client['redirect_uri'],
 						'code'          => $code,
+						'scope'         => self::OAUTH_SCOPE,
 					)
 				),
 				'timeout' => 15,
@@ -346,7 +362,7 @@ final class Crosspost_To_Loops {
 	 * @return string
 	 */
 	private function oauth_redirect_uri(): string {
-		return admin_url( 'options-general.php?page=crosspost-to-loops&ctl_oauth_callback=1' );
+		return admin_url( 'admin-post.php?action=ctl_oauth_callback' );
 	}
 
 	/**
@@ -411,7 +427,7 @@ final class Crosspost_To_Loops {
 		add_settings_section(
 			'loops_connection',
 			__( 'Loops.video Connection', 'crosspost-to-loops' ),
-			fn() => printf( '<p>%s</p>', esc_html__( 'Enter your Loops.video instance URL and API access token.', 'crosspost-to-loops' ) ),
+			fn() => printf( '<p>%s</p>', esc_html__( 'Connect to your Loops.video instance with OAuth. You can still enter an access token manually if needed.', 'crosspost-to-loops' ) ),
 			'crosspost-to-loops'
 		);
 

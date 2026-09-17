@@ -3,7 +3,7 @@
 **Plugin Name:** Crosspost to Loops  
 **License:** GPLv2 or later  
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html  
-**Stable Tag:** 1.6.0
+**Stable Tag:** 1.0.2
 **Tested up to:** 6.9  
 **Requires at least:** 6.0  
 **Requires PHP:** 8.0  
@@ -63,6 +63,12 @@ Not currently — the plugin supports one connected account at a time.
 ---
 
 ## Changelog
+
+### 1.0.2
+- Updated Loops OAuth app registration, authorization, and token exchange to use the required `user:read video:create` scope.
+- Added the site URL during OAuth client registration.
+- Moved the primary OAuth callback to the stable WordPress `admin-post.php?action=ctl_oauth_callback` route while retaining legacy callback compatibility.
+- Clarified that OAuth is the normal connection path while manual access-token entry remains available.
 
 ### 1.6.0
 - Fixed all WordPress Plugin Check errors and warnings
