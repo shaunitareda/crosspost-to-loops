@@ -3,7 +3,7 @@
 **Plugin Name:** Crosspost to Loops  
 **License:** GPLv2 or later  
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html  
-**Stable Tag:** 1.6.0  
+**Stable Tag:** 1.6.0
 **Tested up to:** 6.9  
 **Requires at least:** 6.0  
 **Requires PHP:** 8.0  
