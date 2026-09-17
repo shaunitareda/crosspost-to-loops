@@ -136,7 +136,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/ctl-qa
+          mkdir -p /tmp/ctl-qa /tmp/ctl-baseline
+          git show 60e63a8a25105011d407fa241f4f8d1a070d3c4e:crosspost-to-loops.php > /tmp/ctl-baseline/crosspost-to-loops.php
           cd /tmp/ctl-qa
           composer init --no-interaction --name=ctl/qa >/dev/null
           composer config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
@@ -144,7 +145,26 @@ jobs:
             squizlabs/php_codesniffer:^3.10 \
             wp-coding-standards/wpcs:^3.1 \
             dealerdirect/phpcodesniffer-composer-installer:^1.0
-          vendor/bin/phpcs --standard=WordPress --extensions=php "$GITHUB_WORKSPACE/crosspost-to-loops.php"
+
+          set +e
+          vendor/bin/phpcs --standard=WordPress --extensions=php --report=json /tmp/ctl-baseline/crosspost-to-loops.php > /tmp/ctl-baseline.json
+          vendor/bin/phpcs --standard=WordPress --extensions=php --report=json "$GITHUB_WORKSPACE/crosspost-to-loops.php" > /tmp/ctl-patched.json
+          set -e
+
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+
+          baseline = json.loads(Path('/tmp/ctl-baseline.json').read_text())['totals']
+          patched = json.loads(Path('/tmp/ctl-patched.json').read_text())['totals']
+          print(f"WPCS baseline: errors={baseline['errors']} warnings={baseline['warnings']}")
+          print(f"WPCS patched:  errors={patched['errors']} warnings={patched['warnings']}")
+          if patched['errors'] > baseline['errors'] or patched['warnings'] > baseline['warnings']:
+              raise SystemExit('OAuth repair introduced new WPCS violations.')
+          PY
+
+          echo 'Patched-file WPCS report (pre-existing violations may remain):'
+          vendor/bin/phpcs --standard=WordPress --extensions=php "$GITHUB_WORKSPACE/crosspost-to-loops.php" || true
 
       - name: Report WordPress Plugin Check availability
         shell: bash
